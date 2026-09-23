@@ -58,4 +58,4 @@ right_panel = door_frame * translate(right_panel_displacement(), 0, 0)
 | `src/term.rs` | Single-keypress terminal mode |
 | `src/main.rs` | Interactive loop and `--demo` |
 
-The demo configuration is a 1 m leaf, 0.9 m/s cruise, 1.8 m/s² ramps, and a 1.4 s dwell. The library default is a slower pedestrian door: 0.5 m/s and 0.8 m/s².
+The demo configuration is a 1 m leaf, 0.5 m/s cruise, 1.0 m/s² ramps, and a 1.6 s dwell. The library default uses the same cruise speed with a gentler 0.8 m/s² ramp and a 2 s dwell.

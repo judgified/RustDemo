@@ -8,9 +8,10 @@ use crate::view::{render, RenderOptions};
 pub fn demo_config() -> DoorConfig {
     DoorConfig {
         travel: 1.0,
-        max_speed: 0.9,
-        acceleration: 1.8,
-        dwell: 1.4,
+        // Slow enough that a person can catch the door while it is closing.
+        max_speed: 0.5,
+        acceleration: 1.0,
+        dwell: 1.6,
         epsilon: 1e-3,
     }
 }

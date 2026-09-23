@@ -77,6 +77,22 @@ Keys (interactive):
     );
 }
 
+/// Append an erase-to-end-of-line on every row so a shorter status line does
+/// not leave characters from the previous frame.
+fn clear_lines(picture: &str) -> String {
+    let mut out = String::with_capacity(picture.len() + 16);
+    for line in picture.split_inclusive('\n') {
+        if let Some(body) = line.strip_suffix('\n') {
+            out.push_str(body);
+            out.push_str("\x1b[K\n");
+        } else {
+            out.push_str(line);
+            out.push_str("\x1b[K");
+        }
+    }
+    out
+}
+
 fn print_demo() -> io::Result<()> {
     let samples = simulate();
     let mut out = io::stdout();
@@ -113,7 +129,9 @@ fn run_interactive() -> io::Result<()> {
             },
         );
         let mut out = io::stdout();
-        write!(out, "\x1b[H{picture}")?;
+        // Home the cursor, erase leftover glyphs from the previous frame, and
+        // erase anything below the new picture.
+        write!(out, "\x1b[H{}\x1b[J", clear_lines(&picture))?;
         out.flush()?;
 
         let timeout = frame.saturating_sub(frame_start.elapsed());
@@ -131,4 +149,18 @@ fn run_interactive() -> io::Result<()> {
         }
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::clear_lines;
+
+    #[test]
+    fn each_frame_row_erases_leftover_glyphs() {
+        assert_eq!(
+            clear_lines("Closed\nIdle\n"),
+            "Closed\u{1b}[K\nIdle\u{1b}[K\n"
+        );
+        assert_eq!(clear_lines("Open"), "Open\u{1b}[K");
+    }
 }
