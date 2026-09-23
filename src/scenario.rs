@@ -66,41 +66,88 @@ pub struct Sample {
     pub frame: Option<String>,
 }
 
+/// Real-time player for the scripted visitor.
+pub struct Playback {
+    door: SlidingDoor,
+    beat: Beat,
+    beat_time: f64,
+    time: f64,
+    previous_phase: DoorPhase,
+    finished: bool,
+}
+
+impl Playback {
+    pub fn new() -> Self {
+        let door = SlidingDoor::new(demo_config()).expect("demo configuration is valid");
+        let previous_phase = door.phase();
+        Self {
+            door,
+            beat: Beat::IdleClosed,
+            beat_time: 0.0,
+            time: 0.0,
+            previous_phase,
+            finished: false,
+        }
+    }
+
+    pub fn door(&self) -> &SlidingDoor {
+        &self.door
+    }
+
+    pub fn time(&self) -> f64 {
+        self.time
+    }
+
+    pub fn beat(&self) -> &'static str {
+        self.beat.label()
+    }
+
+    pub fn finished(&self) -> bool {
+        self.finished
+    }
+
+    /// Advance the story by `dt` seconds. Returns whether the phase changed.
+    pub fn step(&mut self, dt: f64) -> bool {
+        if self.finished || !(dt.is_finite() && dt > 0.0) {
+            return false;
+        }
+        self.time += dt;
+        self.beat_time += dt;
+        let sensors = advance(&self.door, self.beat, self.beat_time);
+        if let Some(next) = sensors.next {
+            self.beat = next;
+            self.beat_time = 0.0;
+        }
+        self.door.set_presence(sensors.presence);
+        self.door.set_obstructed(sensors.obstructed);
+        self.door.step(dt);
+
+        let phase_changed = self.door.phase() != self.previous_phase;
+        self.previous_phase = self.door.phase();
+        if (self.beat == Beat::Done && self.beat_time >= 0.4) || self.time > 60.0 {
+            self.finished = true;
+        }
+        phase_changed
+    }
+}
+
 /// Run the scripted visitor and return one sample per integration tick.
 pub fn simulate() -> Vec<Sample> {
-    let config = demo_config();
-    let mut door = SlidingDoor::new(config).expect("demo configuration is valid");
-    let mut beat = Beat::IdleClosed;
-    let mut beat_time = 0.0;
-    let mut time = 0.0;
-    let dt = 0.01;
-    let mut samples = Vec::new();
-    let mut previous_phase = door.phase();
-
-    samples.push(take_sample(&door, time, beat, true));
-
-    loop {
-        time += dt;
-        beat_time += dt;
-        let sensors = advance(&door, beat, beat_time);
-        if let Some(next) = sensors.next {
-            beat = next;
-            beat_time = 0.0;
-        }
-        door.set_presence(sensors.presence);
-        door.set_obstructed(sensors.obstructed);
-        door.step(dt);
-
-        let phase_changed = door.phase() != previous_phase;
-        previous_phase = door.phase();
-        samples.push(take_sample(&door, time, beat, phase_changed));
-
-        if beat == Beat::Done && beat_time >= 0.4 {
-            break;
-        }
-        if time > 60.0 {
-            break;
-        }
+    let mut playback = Playback::new();
+    let mut samples = vec![take_sample(
+        playback.door(),
+        playback.time(),
+        playback.beat,
+        true,
+    )];
+    while !playback.finished() {
+        let phase_changed = playback.step(0.01);
+        samples.push(take_sample(
+            playback.door(),
+            playback.time(),
+            playback.beat,
+            phase_changed,
+        ));
     }
     samples
 }

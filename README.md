@@ -8,7 +8,8 @@ The doorway is driven by a small controller, not by a canned animation. Each tic
 
 ```bash
 cargo run                 # interactive
-cargo run -- --demo       # scripted visitor and a motion trace
+cargo run -- --play       # animated arrive / return / safety-edge story
+cargo run -- --demo       # the same story, printed as a motion trace
 cargo test
 ```
 
@@ -35,11 +36,10 @@ Each call to `SlidingDoor::step(dt)`:
 
 Rules:
 
-- Presence while shut starts an opening stroke. That stroke always finishes, so the leaves do not reverse onto someone in the doorway.
+- Presence or the safety edge while shut starts an opening stroke. That stroke always finishes, so the leaves do not reverse onto someone in the doorway.
 - While the door is open, either sensor resets the dwell timer.
 - When dwell expires with both sensors clear, the door closes.
 - Presence or the safety edge during a close immediately retargets the profile to fully open. If the panels are still moving shut, the profile brakes through zero and then opens. That is the reversing regime.
-- The safety edge does not open a door that is already shut. It only interrupts closing and holds the open dwell.
 
 `position` is the shared leaf travel: `0` shut, `travel` fully open. The left panel's translation is `-position` and the right panel's is `+position`. Those two displacements are what a graphics scene would write into each leaf's model matrix:
 

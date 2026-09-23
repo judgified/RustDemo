@@ -13,8 +13,9 @@
 //!    trapezoidal velocity profile toward it.
 //! 4. Latch Open or Closed once a stop is reached at rest.
 //!
-//! A closing stroke reopens as soon as either sensor trips. An opening stroke
-//! always finishes, so the panels cannot reverse onto someone who just entered.
+//! Either sensor opens a shut door and reopens a closing stroke. If the panels
+//! are still moving shut, the profile brakes through zero before opening.
+//! An opening stroke always finishes, so the panels cannot pinch.
 
 use std::fmt;
 
@@ -213,8 +214,8 @@ impl SlidingDoor {
 
     /// The closing-edge safety sensor is pressed.
     ///
-    /// This sensor does not request an opening from the shut pose. It holds an
-    /// open door and reverses a door that is already closing.
+    /// A trip opens a shut door, reverses a closing stroke, and holds an open
+    /// door. The opening stroke still finishes if the edge clears partway.
     pub fn set_obstructed(&mut self, obstructed: bool) {
         self.obstructed = obstructed;
     }
@@ -341,7 +342,7 @@ impl SlidingDoor {
     fn step_once(&mut self, dt: f64) {
         match self.phase {
             DoorPhase::Closed => {
-                if self.presence {
+                if self.presence || self.obstructed {
                     self.phase = DoorPhase::Opening;
                 }
             }
@@ -566,15 +567,17 @@ mod tests {
     }
 
     #[test]
-    fn a_clear_safety_edge_does_not_open_a_shut_door() {
+    fn safety_edge_opens_a_shut_door_and_holds_it() {
         let mut door = SlidingDoor::new(quick_config()).unwrap();
         door.set_obstructed(true);
-        assert!(!run_until(
+        assert!(run_until(
             &mut door,
-            |door| door.phase() != DoorPhase::Closed,
-            1.0
+            |door| door.phase() == DoorPhase::Open,
+            3.0
         ));
-        assert_eq!(door.position(), 0.0);
+        door.step(1.0);
+        assert_eq!(door.phase(), DoorPhase::Open);
+        assert!(door.openness() > 0.999);
     }
 
     #[test]

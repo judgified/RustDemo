@@ -10,7 +10,7 @@ mod view;
 use std::io::{self, IsTerminal, Write};
 use std::time::{Duration, Instant};
 
-use scenario::{demo_config, format_demo, simulate};
+use scenario::{demo_config, format_demo, simulate, Playback};
 use sliding_door::SlidingDoor;
 use view::{render, RenderOptions};
 
@@ -38,6 +38,17 @@ fn run() -> io::Result<()> {
             }
             print_demo()
         }
+        Some("--play") => {
+            if args.next().is_some() {
+                return unexpected();
+            }
+            if io::stdin().is_terminal() && io::stdout().is_terminal() {
+                run_playback()
+            } else {
+                eprintln!("(no terminal detected; printing the scripted trace)");
+                print_demo()
+            }
+        }
         Some("--help") | Some("-h") => {
             if args.next().is_some() {
                 return unexpected();
@@ -52,7 +63,7 @@ fn run() -> io::Result<()> {
 fn unexpected() -> io::Result<()> {
     Err(io::Error::new(
         io::ErrorKind::InvalidInput,
-        "usage: sliding-door [--demo | --help]",
+        "usage: sliding-door [--play | --demo | --help]",
     ))
 }
 
@@ -66,7 +77,8 @@ and a trapezoidal velocity profile, then draws the panels.
 
 Usage:
   cargo run                 Interactive demo
-  cargo run -- --demo       Scripted visitor, printed as a motion trace
+  cargo run -- --play       Animated visitor story, including the safety reverse
+  cargo run -- --demo       That story printed as a motion trace
   cargo run -- --help
 
 Keys (interactive):
@@ -98,6 +110,52 @@ fn print_demo() -> io::Result<()> {
     let mut out = io::stdout();
     write!(out, "{}", format_demo(&samples))?;
     out.flush()
+}
+
+fn run_playback() -> io::Result<()> {
+    let _raw = term::RawMode::acquire()?;
+    let mut playback = Playback::new();
+    let mut last = Instant::now();
+    let frame = Duration::from_millis(33);
+
+    loop {
+        let frame_start = Instant::now();
+        let dt = frame_start
+            .saturating_duration_since(last)
+            .as_secs_f64()
+            .clamp(0.0, 0.05);
+        last = frame_start;
+        if dt > 0.0 {
+            playback.step(dt);
+        }
+
+        let mut picture = render(
+            playback.door(),
+            &RenderOptions {
+                color: true,
+                show_keys: false,
+                elapsed_secs: playback.time(),
+            },
+        );
+        picture.push_str(&format!("Script        {}\n", playback.beat()));
+        picture.push_str("q  quit\n");
+        let mut out = io::stdout();
+        write!(out, "\x1b[H{}\x1b[J", clear_lines(&picture))?;
+        out.flush()?;
+
+        if playback.finished() {
+            std::thread::sleep(Duration::from_secs(1));
+            break;
+        }
+
+        let timeout = frame.saturating_sub(frame_start.elapsed());
+        for key in term::poll_keys(timeout.as_millis() as i32)? {
+            if matches!(key, b'q' | b'Q' | 3 | 27) || term::interrupted() {
+                return Ok(());
+            }
+        }
+    }
+    Ok(())
 }
 
 fn run_interactive() -> io::Result<()> {
