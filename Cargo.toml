@@ -1,0 +1,6 @@
+[package]
+name = "sliding_door"
+version = "0.1.0"
+edition = "2021"
+description = "Interactive automatic sliding-door controller for a code demo"
+publish = false
