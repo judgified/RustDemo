@@ -1,9 +1,9 @@
-# Sliding door
+# Mean
 
-A small Rust demo. Two panels slide apart, then back together.
+Reads integers and prints their mean.
 
 ```bash
-cargo run
+echo "1 2 3 4" | cargo run
 ```
 
-`openness` is 0 when the door is shut and 1 when it is open. The gap in the middle is that fraction of the doorway. Each panel gets half of the space that is left.
+That prints `2.5`. Separate the numbers with spaces or newlines. Press Ctrl-D when typing them in by hand.

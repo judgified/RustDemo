@@ -1,43 +1,54 @@
-//! Two panels slide apart, then back together.
-//!
-//! `openness` is 0 when the door is shut and 1 when it is open.
-//! The gap in the middle is that fraction of the doorway. Each panel
-//! gets half of whatever space is left.
+//! Read integers from standard input and print their mean.
 
-const DOOR_WIDTH: usize = 20;
+use std::io::{self, Read};
+use std::process::ExitCode;
 
-fn main() {
-    println!("sliding door\n");
-    for openness in frames() {
-        println!("{}   {:3.0}%", draw(openness), openness * 100.0);
-        std::thread::sleep(std::time::Duration::from_millis(80));
+fn main() -> ExitCode {
+    let mut input = String::new();
+    if io::stdin().read_to_string(&mut input).is_err() {
+        eprintln!("could not read input");
+        return ExitCode::from(1);
+    }
+
+    let numbers = match parse_integers(&input) {
+        Ok(numbers) => numbers,
+        Err(token) => {
+            eprintln!("{token} is not an integer");
+            return ExitCode::from(1);
+        }
+    };
+
+    match mean(&numbers) {
+        Some(value) => {
+            println!("{value}");
+            ExitCode::SUCCESS
+        }
+        None => {
+            eprintln!("enter at least one integer");
+            ExitCode::from(1)
+        }
     }
 }
 
-/// Shut, then fully open, then shut again.
-fn frames() -> Vec<f64> {
-    let steps = 10;
-    let mut frames = Vec::new();
-    for step in 0..=steps {
-        frames.push(step as f64 / steps as f64);
+/// Split `input` on whitespace and parse each piece as an integer.
+fn parse_integers(input: &str) -> Result<Vec<i64>, &str> {
+    let mut numbers = Vec::new();
+    for token in input.split_whitespace() {
+        match token.parse::<i64>() {
+            Ok(number) => numbers.push(number),
+            Err(_) => return Err(token),
+        }
     }
-    for step in (0..steps).rev() {
-        frames.push(step as f64 / steps as f64);
-    }
-    frames
+    Ok(numbers)
 }
 
-/// Draw the doorway at this openness.
-fn draw(openness: f64) -> String {
-    let gap = (openness.clamp(0.0, 1.0) * DOOR_WIDTH as f64).round() as usize;
-    let left = (DOOR_WIDTH - gap) / 2;
-    let right = DOOR_WIDTH - gap - left;
-    format!(
-        "[{}{}{}]",
-        "#".repeat(left),
-        " ".repeat(gap),
-        "#".repeat(right)
-    )
+/// Arithmetic mean. `None` when there are no numbers.
+fn mean(numbers: &[i64]) -> Option<f64> {
+    if numbers.is_empty() {
+        return None;
+    }
+    let sum: i128 = numbers.iter().map(|number| *number as i128).sum();
+    Some(sum as f64 / numbers.len() as f64)
 }
 
 #[cfg(test)]
@@ -45,25 +56,33 @@ mod tests {
     use super::*;
 
     #[test]
-    fn a_shut_door_is_solid() {
-        assert_eq!(draw(0.0), "[####################]");
+    fn mean_of_several_numbers() {
+        assert_eq!(mean(&[1, 2, 3, 4]), Some(2.5));
     }
 
     #[test]
-    fn an_open_door_is_a_gap() {
-        assert_eq!(draw(1.0), "[                    ]");
+    fn mean_of_one_number() {
+        assert_eq!(mean(&[7]), Some(7.0));
     }
 
     #[test]
-    fn halfway_splits_the_two_panels() {
-        assert_eq!(draw(0.5), "[#####          #####]");
+    fn mean_of_negatives() {
+        assert_eq!(mean(&[-2, 0, 2]), Some(0.0));
     }
 
     #[test]
-    fn the_demo_opens_and_then_closes() {
-        let frames = frames();
-        assert_eq!(frames.first().copied(), Some(0.0));
-        assert!(frames.contains(&1.0));
-        assert_eq!(frames.last().copied(), Some(0.0));
+    fn empty_input_has_no_mean() {
+        assert_eq!(mean(&[]), None);
+        assert_eq!(parse_integers("   \n"), Ok(vec![]));
+    }
+
+    #[test]
+    fn spaces_and_newlines_both_count() {
+        assert_eq!(parse_integers("1 2\n3\t4"), Ok(vec![1, 2, 3, 4]));
+    }
+
+    #[test]
+    fn a_word_is_rejected() {
+        assert_eq!(parse_integers("1 two 3"), Err("two"));
     }
 }
