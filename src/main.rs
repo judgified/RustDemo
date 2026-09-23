@@ -11,7 +11,7 @@ use std::io::{self, IsTerminal, Write};
 use std::time::{Duration, Instant};
 
 use scenario::{demo_config, format_demo, simulate, Playback};
-use sliding_door::SlidingDoor;
+use sliding_door::{MotionRegime, SlidingDoor};
 use view::{render, RenderOptions};
 
 fn main() {
@@ -120,10 +120,14 @@ fn run_playback() -> io::Result<()> {
 
     loop {
         let frame_start = Instant::now();
-        let dt = frame_start
+        let mut dt = frame_start
             .saturating_duration_since(last)
             .as_secs_f64()
             .clamp(0.0, 0.05);
+        // Stretch the reversing stroke so the brake-and-reopen stays on screen.
+        if playback.door().regime() == MotionRegime::Reversing {
+            dt *= 0.12;
+        }
         last = frame_start;
         if dt > 0.0 {
             playback.step(dt);

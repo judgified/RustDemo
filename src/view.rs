@@ -209,8 +209,8 @@ fn cell_at(x: usize, openness: f64) -> Cell {
 
 fn paint_cell(out: &mut String, color: bool, cell: Cell) {
     match cell {
-        Cell::Panel => paint(out, color, "94", "█"),
-        Cell::Pocket => paint(out, color, "90", "░"),
+        Cell::Panel => paint(out, color, "38;5;39", "█"),
+        Cell::Pocket => paint(out, color, "38;5;236", "▓"),
         Cell::Gap => out.push(' '),
     }
 }
@@ -274,7 +274,7 @@ mod tests {
         let shut = render(&door, &options);
         assert!(shut.contains("Closed"));
         assert!(shut.contains("sensor zone clear"));
-        assert!(shut.contains("░░░░████"));
+        assert!(shut.contains("▓▓▓▓████"));
         assert!(shut.contains('p'));
         assert!(!shut.contains('\u{1b}'));
 
@@ -301,6 +301,6 @@ mod tests {
                 elapsed_secs: 2.0,
             },
         );
-        assert!(colored.contains("\u{1b}[94m"));
+        assert!(colored.contains("\u{1b}[38;5;39m"));
     }
 }
