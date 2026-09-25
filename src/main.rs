@@ -38,7 +38,8 @@ fn main() -> ExitCode {
 
 /// Split `input` on whitespace and parse each piece as an integer.
 ///
-/// The error value is the first token that could not be parsed.
+/// The error is a slice of `input`, not a newly allocated `String`. Rust ties
+/// that borrow to the input, so the bad token can be named without copying it.
 fn parse_integers(input: &str) -> Result<Vec<i64>, &str> {
     let mut numbers = Vec::new();
     for token in input.split_whitespace() {
@@ -50,7 +51,9 @@ fn parse_integers(input: &str) -> Result<Vec<i64>, &str> {
     Ok(numbers)
 }
 
-/// Arithmetic mean. `None` when there are no numbers.
+/// Arithmetic mean.
+///
+/// Rust has no null. `None` means there were no numbers, and `Some` carries the mean.
 fn mean(numbers: &[i64]) -> Option<f64> {
     if numbers.is_empty() {
         return None;
